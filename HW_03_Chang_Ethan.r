@@ -27,13 +27,12 @@ truth <- data_all$is_aggressive
 min_threshold <- min(all_speeds) # Lowest speed of all speed data
 max_threshold <- max(all_speeds) # Highest speed of all speed data
 
-
 threshold <- min_threshold:max_threshold
 
-FPR = numeric(length(threshold))
-TPR = numeric(length(threshold))
+FPR <- numeric(length(threshold))
+FNR <- numeric(length(threshold))
 flag <- logical(length(threshold)) 
-
+badness <- numeric(length(threshold))
 
 for (individual in seq_along(threshold)) {
 
@@ -70,5 +69,31 @@ for (individual in seq_along(threshold)) {
     FP <- sum(predict_aggresive & truth == 0L)
     FN <- sum(!predict_aggresive & truth == 0L)
 
+    if ((FP + TN) > 0) {
+
+        FPR[individual] <- FP / (FP + TN)
+
+    } else {
+
+        FPR[individual] <- 0
+
+    }
+
+    if ((FN + TP) > 0) {
+
+        FNR[individual] <- FN / (FN + TP)
+
+    } else {
+
+        FNR[individual] <- 0
+
+    }
+
+    badness[individual] <- FPR[individual] + FNR[individual]
+
 }
 
+print(FP)
+print(TP)
+print(FN)
+print(TN)
