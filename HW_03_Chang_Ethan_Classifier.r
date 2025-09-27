@@ -1,6 +1,6 @@
 # --- learned constants from training ---
-BEST_FEATURE   <- "SPEED"      # replace with your winning attribute name
-BEST_TAU       <- 60L          # replace with your winning integer threshold
+BEST_FEATURE   <- "LANE_CHANGES"      # replace with your winning attribute name
+BEST_TAU       <- 2L          # replace with your winning integer threshold
 BEST_FLAG_LEFT <- FALSE         # TRUE: predict aggressive on <=; FALSE: on >
 
 # --- read test csv from command line ---

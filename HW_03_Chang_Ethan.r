@@ -13,28 +13,23 @@ dfs <- lapply(csvs, read.csv) #lapply() applies function for each element of vec
 data_all <- do.call(rbind, dfs) #Combine all data frames into one data frame
 
 all_speed_nontruncated <- data_all$SPEED
-all_lane_change <- data_all$LANE_CHANGES
-all_brightness <- data_all$BRIGHTNESS
 all_intent <- data_all$INTENT
-
-all_speeds <- trunc(all_speed_nontruncated) # Truncates all of the speed data
 
 data_all$is_aggressive <- ifelse(data_all$INTENT %in% c(2), 1L, 0L) #If intent = 2, it's marked as aggressive. With intent = 0 or 1, it's non-aggressive
 truth <- data_all$is_aggressive
 
-min_threshold <- min(all_speeds) # Lowest speed of all speed data
-max_threshold <- max(all_speeds) # Highest speed of all speed data
+all_speeds <- trunc(all_speed_nontruncated) # Truncates all of the speed data
+s_min_threshold <- min(all_speeds) # Lowest speed of all speed data
+s_max_threshold <- max(all_speeds) # Highest speed of all speed data
+s_threshold <- s_min_threshold:s_max_threshold
+s_FPR <- numeric(length(s_threshold))
+s_FNR <- numeric(length(s_threshold))
+s_flag <- logical(length(s_threshold)) 
+s_badness <- numeric(length(s_threshold))
 
-threshold <- min_threshold:max_threshold
+for (individual in seq_along(s_threshold)) {
 
-FPR <- numeric(length(threshold))
-FNR <- numeric(length(threshold))
-flag <- logical(length(threshold)) 
-badness <- numeric(length(threshold))
-
-for (individual in seq_along(threshold)) {
-
-    ind_t <- threshold[individual]
+    ind_t <- s_threshold[individual]
 
     left_group <- truth[all_speeds <= ind_t]
 
@@ -44,15 +39,15 @@ for (individual in seq_along(threshold)) {
 
     if (left_group_agg > left_group_nagg) {
 
-        flag[individual] <- TRUE
+        s_flag[individual] <- TRUE
 
     } else {
 
-        flag[individual] <- FALSE
+        s_flag[individual] <- FALSE
 
     }
 
-    predict_aggresive <- if (flag[individual]) {
+    prediction <- if (s_flag[individual]) {
 
         all_speeds <= ind_t
 
@@ -62,52 +57,211 @@ for (individual in seq_along(threshold)) {
 
     }
 
-    TP <- sum(predict_aggresive & truth == 1L)
-    TN <- sum(!predict_aggresive & truth == 0L)
-    FP <- sum(predict_aggresive & truth == 0L)
-    FN <- sum(!predict_aggresive & truth == 1L)
+    TP <- sum(prediction & truth == 1L)
+    TN <- sum(!prediction & truth == 0L)
+    FP <- sum(prediction & truth == 0L)
+    FN <- sum(!prediction & truth == 1L)
 
     if ((FP + TN) > 0) {
 
-        FPR[individual] <- FP / (FP + TN)
+        s_FPR[individual] <- FP / (FP + TN)
 
     } else {
 
-        FPR[individual] <- NA_real_
+        s_FPR[individual] <- NA_real_
 
     }
 
     if ((FN + TP) > 0) {
 
-        FNR[individual] <- FN / (FN + TP)
+        s_FNR[individual] <- FN / (FN + TP)
 
     } else {
 
-        FNR[individual] <- NA_real_
+        s_FNR[individual] <- NA_real_
 
     }
 
-    badness[individual] <- FPR[individual] + FNR[individual]
+    s_badness[individual] <- s_FPR[individual] + s_FNR[individual]
 
 }
 
-badness_min <- ifelse(is.finite(badness), badness, Inf)
-min_b <- which.min(badness_min)
+s_index <- which.min(s_badness)
+s_threshold_min <- s_threshold[s_index]
+s_flag_min <- s_flag[s_index]
+s_badness_min <- s_badness[s_index]
 
-min_threshold <- threshold[min_b]
-min_flag <- flag[min_b]
-min_fpr <- FPR[min_b]
-min_fnr <- FNR[min_b]
-min_badness <- badness[min_b] 
+##############################################################################
 
-best_feature <- "speed"
+all_lane_change <- data_all$LANE_CHANGES
+
+lc_min_threshold <- min(all_lane_change)
+lc_max_threshold <- max(all_lane_change)
+lc_threshold <- lc_min_threshold:lc_max_threshold
+
+lc_FPR <- numeric(length(lc_threshold))
+lc_FNR <- numeric(length(lc_threshold))
+lc_flag <- logical(length(lc_threshold))
+lc_badness <- numeric(length(lc_threshold))
+
+for (individual in seq_along(lc_threshold)) {
+    
+    ind_t <- lc_threshold[individual]
+
+    left_group <- truth[all_lane_change <= ind_t]
+
+    left_group_agg <- sum(left_group == 1L)
+    
+    left_group_nagg <- sum(left_group == 0L)
+
+    if (left_group_agg > left_group_nagg) {
+
+        lc_flag[individual] <- TRUE
+
+    } else {
+
+        lc_flag[individual] <- FALSE
+
+    }
+
+    prediction <- if (lc_flag[individual]) {
+
+        all_lane_change <= ind_t
+
+    } else {
+
+        all_lane_change > ind_t
+
+    }
+
+    TP <- sum(prediction & truth == 1L)
+    TN <- sum(!prediction & truth == 0L)
+    FP <- sum(prediction & truth == 0L)
+    FN <- sum(!prediction & truth == 1L)
+
+    if ((FP + TN) > 0) {
+
+        lc_FPR[individual] <- FP / (FP + TN)
+
+    } else {
+
+        lc_FPR[individual] <- NA_real_
+
+    }
+
+    if ((FN + TP) > 0) {
+
+        lc_FNR[individual] <- FN / (FN + TP)
+
+    } else {
+
+        lc_FNR[individual] <- NA_real_
+
+    }
+
+    lc_badness[individual] <- lc_FPR[individual] + lc_FNR[individual]
+
+}
+
+lc_index <- which.min(lc_badness)
+lc_threshold_min <- lc_threshold[lc_index]
+lc_flag_min <- lc_flag[lc_index]
+lc_badness_min <- lc_badness[lc_index]
+
+############################################################################## 
+
+all_brightness <- data_all$BRIGHTNESS
+b_min_threshold <- min(all_brightness)
+b_max_threshold <- max(all_brightness)
+b_threshold <- b_min_threshold:b_max_threshold
+
+b_FPR <- numeric(length(b_threshold))
+b_FNR <- numeric(length(b_threshold))
+b_flag <- logical(length(b_threshold))
+b_badness <- numeric(length(b_threshold))
+
+for (individual in seq_along(b_threshold)) {
+
+    ind_t <- b_threshold[individual]
+
+    left_group <- truth[all_brightness <= ind_t]
+
+    left_group_agg <- sum(left_group == 1L)
+    
+    left_group_nagg <- sum(left_group == 0L)
+
+    if (left_group_agg > left_group_nagg) {
+
+        b_flag[individual] <- TRUE
+
+    } else {
+
+        b_flag[individual] <- FALSE
+
+    }
+
+    prediction <- if (b_flag[individual]) {
+
+        all_brightness <= ind_t
+
+    } else {
+
+        all_brightness > ind_t
+
+    }
+
+    TP <- sum(prediction & truth == 1L)
+    TN <- sum(!prediction & truth == 0L)
+    FP <- sum(prediction & truth == 0L)
+    FN <- sum(!prediction & truth == 1L)
+
+    if ((FP + TN) > 0) {
+
+        b_FPR[individual] <- FP / (FP + TN)
+
+    } else {
+
+        b_FPR[individual] <- NA_real_
+
+    }
+
+    if ((FN + TP) > 0) {
+
+        b_FNR[individual] <- FN / (FN + TP)
+
+    } else {
+
+        b_FNR[individual] <- NA_real_
+
+    }
+
+    b_badness[individual] <- b_FPR[individual] + b_FNR[individual]
+
+}
+
+b_index <- which.min(b_badness)
+b_badness_threshold_min <- b_threshold[b_index]
+b_flag_min <- b_flag[b_index]
+b_badness_min <- b_badness[b_index]
+
+##############################################################################
+
+cands_bad <- c(speed = s_badness_min,
+               lane_changes = lc_badness_min,
+               brightness   = b_badness_min)
+
+best_attr <- names(which.min(cands_bad))
+
+if (best_attr == "speed") {
+  best_feature <- "SPEED";       best_tau <- as.integer(s_threshold_min);  best_flag <- s_flag_min
+} else if (best_attr == "lane_changes") {
+  best_feature <- "LANE_CHANGES"; best_tau <- as.integer(lc_threshold_min); best_flag <- lc_flag_min
+} else {
+  best_feature <- "BRIGHTNESS";   best_tau <- as.integer(b_threshold_min);  best_flag <- b_flag_min
+}              
 
 classifier_path <- sprintf("HW_03_%s_%s_Classifier.r", "Chang", "Ethan")
 
-best_tau  <- threshold[min_b]   # keep your naming if you like, but use this variable below
-best_flag <- flag[min_b]
-
-
 cat('BEST_FEATURE   <- "', toupper(best_feature), '"\n', sep = "")
-cat('BEST_TAU       <- ', as.integer(min_threshold), 'L\n', sep = "")
-cat('BEST_FLAG_LEFT <- ', if (min_flag) "TRUE\n" else "FALSE\n", sep = "")
+cat('BEST_TAU       <- ', as.integer(best_tau), 'L\n', sep = "")
+cat('BEST_FLAG_LEFT <- ', if (best_flag) "TRUE\n" else "FALSE\n", sep = "")
