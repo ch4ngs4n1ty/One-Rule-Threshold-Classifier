@@ -19,8 +19,6 @@ all_intent <- data_all$INTENT
 
 all_speeds <- trunc(all_speed_nontruncated) # Truncates all of the speed data
 
-#print(all_speeds)
-
 data_all$is_aggressive <- ifelse(data_all$INTENT %in% c(2), 1L, 0L) #If intent = 2, it's marked as aggressive. With intent = 0 or 1, it's non-aggressive
 truth <- data_all$is_aggressive
 
@@ -65,9 +63,9 @@ for (individual in seq_along(threshold)) {
     }
 
     TP <- sum(predict_aggresive & truth == 1L)
-    TN <- sum(!predict_aggresive & truth == 1L)
+    TN <- sum(!predict_aggresive & truth == 0L)
     FP <- sum(predict_aggresive & truth == 0L)
-    FN <- sum(!predict_aggresive & truth == 0L)
+    FN <- sum(!predict_aggresive & truth == 1L)
 
     if ((FP + TN) > 0) {
 
@@ -75,7 +73,7 @@ for (individual in seq_along(threshold)) {
 
     } else {
 
-        FPR[individual] <- 0
+        FPR[individual] <- NA_real_
 
     }
 
@@ -85,7 +83,7 @@ for (individual in seq_along(threshold)) {
 
     } else {
 
-        FNR[individual] <- 0
+        FNR[individual] <- NA_real_
 
     }
 
@@ -93,7 +91,23 @@ for (individual in seq_along(threshold)) {
 
 }
 
-print(FP)
-print(TP)
-print(FN)
-print(TN)
+badness_min <- ifelse(is.finite(badness), badness, Inf)
+min_b <- which.min(badness_min)
+
+min_threshold <- threshold[min_b]
+min_flag <- flag[min_b]
+min_fpr <- FPR[min_b]
+min_fnr <- FNR[min_b]
+min_badness <- badness[min_b] 
+
+best_feature <- "speed"
+
+classifier_path <- sprintf("HW_03_%s_%s_Classifier.r", "Chang", "Ethan")
+
+best_tau  <- threshold[min_b]   # keep your naming if you like, but use this variable below
+best_flag <- flag[min_b]
+
+
+cat('BEST_FEATURE   <- "', toupper(best_feature), '"\n', sep = "")
+cat('BEST_TAU       <- ', as.integer(min_threshold), 'L\n', sep = "")
+cat('BEST_FLAG_LEFT <- ', if (min_flag) "TRUE\n" else "FALSE\n", sep = "")
