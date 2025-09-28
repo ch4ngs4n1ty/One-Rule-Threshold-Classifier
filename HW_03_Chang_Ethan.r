@@ -1,6 +1,6 @@
-# Ethan Chang
-# CSCI 420
-
+# HW_03 One-Rule Threshold Classifier
+# Author: Ethan Chang
+# Course: CSCI 420
 
 main_folder <- "HW_03_Data" #Initial main folder containing subfolders with csv files
 
@@ -15,28 +15,38 @@ data_all <- do.call(rbind, dfs) #Combine all data frames into one data frame
 all_speed_nontruncated <- data_all$SPEED
 all_intent <- data_all$INTENT
 
-data_all$is_aggressive <- ifelse(data_all$INTENT %in% c(2), 1L, 0L) #If intent = 2, it's marked as aggressive. With intent = 0 or 1, it's non-aggressive
-truth <- data_all$is_aggressive
+##############################################################################
+# Attribute: Speed
+##############################################################################
 
-all_speeds <- trunc(all_speed_nontruncated) # Truncates all of the speed data
+# Note that Intent 2 represents aggresiveness while Intent 0 and 1 represents non aggresiveness
+data_all$is_aggressive <- ifelse(data_all$INTENT %in% c(2), 1L, 0L) #If intent = 2, it's marked as aggressive. With intent = 0 or 1, it's non-aggressive
+truth <- data_all$is_aggressive # Convert it into truth variable name for simplicity
+
+all_speeds <- trunc(all_speed_nontruncated) # Truncates all of the speed data since it's natural data representation is a float
 s_min_threshold <- min(all_speeds) # Lowest speed of all speed data
 s_max_threshold <- max(all_speeds) # Highest speed of all speed data
-s_threshold <- s_min_threshold:s_max_threshold
-s_FPR <- numeric(length(s_threshold))
-s_FNR <- numeric(length(s_threshold))
-s_flag <- logical(length(s_threshold)) 
-s_badness <- numeric(length(s_threshold))
+s_threshold <- s_min_threshold:s_max_threshold # Minimum to Maximum speed threshold
+s_FPR <- numeric(length(s_threshold)) # Speed False Positive Rate
+s_FNR <- numeric(length(s_threshold)) # Speed False Negative Rate
+s_flag <- logical(length(s_threshold)) # Speed Flag
+s_badness <- numeric(length(s_threshold)) # Speed Badness
 
+#Loop representing attribute SPEED to collect all of speed FPR, FNR, flag, and badness values
 for (individual in seq_along(s_threshold)) {
 
     ind_t <- s_threshold[individual]
 
+    # Find majority class of data that is <= the threshold value
     left_group <- truth[all_speeds <= ind_t]
 
+    # Mainly aggressive drivers are <= the threshold and aggresive means 1
     left_group_agg <- sum(left_group == 1L)
     
+    # Group of non-aggressive drivers with truth value of 0
     left_group_nagg <- sum(left_group == 0L)
 
+    # Set flag if there are more aggresive drivers than non-aggresive drivers
     if (left_group_agg > left_group_nagg) {
 
         s_flag[individual] <- TRUE
@@ -92,7 +102,8 @@ s_flag_min <- s_flag[s_index]
 s_badness_min <- s_badness[s_index]
 
 ##############################################################################
-
+# Attribute: LANE_CHANGES
+##############################################################################
 all_lane_change <- data_all$LANE_CHANGES
 
 lc_min_threshold <- min(all_lane_change)
@@ -169,6 +180,8 @@ lc_flag_min <- lc_flag[lc_index]
 lc_badness_min <- lc_badness[lc_index]
 
 ############################################################################## 
+# Attribute: BRIGHTNESS
+##############################################################################
 
 all_brightness <- data_all$BRIGHTNESS
 b_min_threshold <- min(all_brightness)
@@ -245,6 +258,8 @@ b_flag_min <- b_flag[b_index]
 b_badness_min <- b_badness[b_index]
 
 ##############################################################################
+# Data Result Showcasing
+##############################################################################
 
 cands_bad <- c(speed = s_badness_min,
                lane_changes = lc_badness_min,
@@ -253,15 +268,58 @@ cands_bad <- c(speed = s_badness_min,
 best_attr <- names(which.min(cands_bad))
 
 if (best_attr == "speed") {
-  best_feature <- "SPEED";       best_tau <- as.integer(s_threshold_min);  best_flag <- s_flag_min
+
+    best_feature <- "SPEED"      
+    best_tau <- as.integer(s_threshold_min) 
+    best_flag <- s_flag_min
+
 } else if (best_attr == "lane_changes") {
-  best_feature <- "LANE_CHANGES"; best_tau <- as.integer(lc_threshold_min); best_flag <- lc_flag_min
+
+    best_feature <- "LANE_CHANGES"
+    best_tau <- as.integer(lc_threshold_min)
+    best_flag <- lc_flag_min
+
 } else {
-  best_feature <- "BRIGHTNESS";   best_tau <- as.integer(b_threshold_min);  best_flag <- b_flag_min
+
+    best_feature <- "BRIGHTNESS"
+    best_tau <- as.integer(b_threshold_min)
+    best_flag <- b_flag_min
+
 }              
 
-classifier_path <- sprintf("HW_03_%s_%s_Classifier.r", "Chang", "Ethan")
+classifier_path <- file.path(getwd(), "HW_03_Chang_Ethan_Classifier.r")
 
-cat('BEST_FEATURE   <- "', toupper(best_feature), '"\n', sep = "")
-cat('BEST_TAU       <- ', as.integer(best_tau), 'L\n', sep = "")
-cat('BEST_FLAG_LEFT <- ', if (best_flag) "TRUE\n" else "FALSE\n", sep = "")
+cls <- c(
+  "# One-Rule Threshold Classifier (auto-generated)",
+  sprintf('BEST_FEATURE <- "%s"', toupper(best_feature)),
+  sprintf("BEST_TAU <- %dL", as.integer(best_tau)),
+  sprintf("BEST_FLAG_LEFT <- %s", if (best_flag) "TRUE" else "FALSE"),
+  "",
+  "args <- commandArgs(trailingOnly = TRUE)",
+  'if (length(args) < 1) stop("Usage: Rscript HW_03_Chang_Ethan_Classifier.r <test_suite.csv>")',
+  "",
+  "fname <- args[1]",
+  'fname <- file.path("TEST_SUITE_33", fname)',
+  "",
+  "df <- read.csv(fname, stringsAsFactors = FALSE)",
+  "",
+  "all_speeds <- trunc(df$SPEED)",
+  "all_lane_change <- df$LANE_CHANGES",
+  "all_brightness <- df$BRIGHTNESS_TRUNC",
+  "",
+  'x <- if (BEST_FEATURE == "SPEED") all_speeds else if (BEST_FEATURE == "LANE_CHANGES") all_lane_change else all_brightness',
+  "",
+  "if (BEST_FLAG_LEFT) {
+   pred_aggr <- (x <= BEST_TAU) 
+  } else {
+   pred_aggr <- (x > BEST_TAU)
+  }",
+  "",
+  "cat(sum(pred_aggr), '\\n')",
+  "cat(sum(!pred_aggr), '\\n')"
+)
+
+writeLines(cls, con = classifier_path)
+
+
+

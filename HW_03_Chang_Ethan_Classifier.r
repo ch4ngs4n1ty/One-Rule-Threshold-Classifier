@@ -1,34 +1,27 @@
-# --- learned constants from training ---
-BEST_FEATURE   <- "LANE_CHANGES"      # replace with your winning attribute name
-BEST_TAU       <- 2L          # replace with your winning integer threshold
-BEST_FLAG_LEFT <- FALSE         # TRUE: predict aggressive on <=; FALSE: on >
+# One-Rule Threshold Classifier (auto-generated)
+BEST_FEATURE <- "LANE_CHANGES"
+BEST_TAU <- 2L
+BEST_FLAG_LEFT <- FALSE
 
-# --- read test csv from command line ---
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 1) stop("Usage: Rscript HW_03_Chang_Ethan_Classifier.r <test_suite.csv>")
-test_path <- args[1]
-df <- read.csv(test_path, stringsAsFactors = FALSE)
 
-# --- preprocessing: EXACTLY like training ---
-df$SPEED_TRUNC        <- trunc(df$SPEED)
-df$LANE_CHANGES_TRUNC <- trunc(df$LANE_CHANGES)
-df$BRIGHTNESS_TRUNC   <- trunc(df$BRIGHTNESS)
+fname <- args[1]
+fname <- file.path("TEST_SUITE_33", fname)
 
-# --- choose the attribute column based on BEST_FEATURE ---
-feat <- toupper(BEST_FEATURE)
-x <- switch(feat,
-  "SPEED"        = df$SPEED_TRUNC,
-  "LANE_CHANGES" = df$LANE_CHANGES_TRUNC,
-  "BRIGHTNESS"   = df$BRIGHTNESS_TRUNC,
-  stop("Unknown BEST_FEATURE: ", BEST_FEATURE)
-)
+df <- read.csv(fname, stringsAsFactors = FALSE)
 
-# --- classify using the learned threshold + direction ---
-pred_aggr <- if (BEST_FLAG_LEFT) (x <= BEST_TAU) else (x > BEST_TAU)
+all_speeds <- trunc(df$SPEED)
+all_lane_change <- df$LANE_CHANGES
+all_brightness <- df$BRIGHTNESS_TRUNC
 
-# --- required outputs: two counts (each on its own line) ---
-num_aggressive     <- sum(pred_aggr,  na.rm = TRUE)
-num_non_aggressive <- sum(!pred_aggr, na.rm = TRUE)
+x <- if (BEST_FEATURE == "SPEED") all_speeds else if (BEST_FEATURE == "LANE_CHANGES") all_lane_change else all_brightness
 
-cat(num_aggressive, "\n")
-cat(num_non_aggressive, "\n")
+if (BEST_FLAG_LEFT) {
+   pred_aggr <- (x <= BEST_TAU) 
+  } else {
+   pred_aggr <- (x > BEST_TAU)
+  }
+
+cat(sum(pred_aggr), '\n')
+cat(sum(!pred_aggr), '\n')
