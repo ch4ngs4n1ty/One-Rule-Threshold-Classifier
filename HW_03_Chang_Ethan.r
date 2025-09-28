@@ -12,11 +12,13 @@ dfs <- lapply(csvs, read.csv) #lapply() applies function for each element of vec
 
 data_all <- do.call(rbind, dfs) #Combine all data frames into one data frame
 
-all_speed_nontruncated <- data_all$SPEED
-all_intent <- data_all$INTENT
+all_speed_nontruncated <- data_all$SPEED # Pull all float values of speed
+all_intent <- data_all$INTENT # Pull all intent values of each individual
 
 ##############################################################################
 # Attribute: Speed
+# Data Type: Float
+# Must be truncated into whole numbers
 ##############################################################################
 
 # Note that Intent 2 represents aggresiveness while Intent 0 and 1 represents non aggresiveness
@@ -32,7 +34,10 @@ s_FNR <- numeric(length(s_threshold)) # Speed False Negative Rate
 s_flag <- logical(length(s_threshold)) # Speed Flag
 s_badness <- numeric(length(s_threshold)) # Speed Badness
 
-#Loop representing attribute SPEED to collect all of speed FPR, FNR, flag, and badness values
+# Loop representing attribute SPEED to collect all of speed FPR, FNR, flag, and badness values
+# Note: From reading the write up, it said "For each possible attribute", so my approach is set up
+# for loops for each individual attribute to get the data we need.
+# It could be complicated if we use one loop for all of the attributes.
 for (individual in seq_along(s_threshold)) {
 
     ind_t <- s_threshold[individual]
@@ -49,7 +54,7 @@ for (individual in seq_along(s_threshold)) {
     # Set flag if there are more aggresive drivers than non-aggresive drivers
     if (left_group_agg > left_group_nagg) {
 
-        s_flag[individual] <- TRUE
+        s_flag[individual] <- TRUE 
 
     } else {
 
@@ -57,77 +62,88 @@ for (individual in seq_along(s_threshold)) {
 
     }
 
-    prediction <- if (s_flag[individual]) {
+    if (s_flag[individual]) { 
 
-        all_speeds <= ind_t
+        prediction <- all_speeds <= ind_t # If flagged, that means we pull left side of data
 
     } else {
 
-        all_speeds > ind_t
+        prediction <- all_speeds > ind_t # If non-flagged, that means we pull right side of data
 
     }
-
-    TP <- sum(prediction & truth == 1L)
-    TN <- sum(!prediction & truth == 0L)
-    FP <- sum(prediction & truth == 0L)
-    FN <- sum(!prediction & truth == 1L)
+                                                        # Prediction , Truth
+    TP <- sum(prediction & truth == 1L) # True Positive (Aggressive, Aggressive)
+    TN <- sum(!prediction & truth == 0L) # True Negative (Not Aggresive, Not Aggresive)
+    FP <- sum(prediction & truth == 0L) # False Positive (Aggresive, Not Aggresive) (False Alarm) (Number of Non-aggressive drivers that are incorrectly identified)
+    FN <- sum(!prediction & truth == 1L) # False Negative (Not Aggresive, Aggresive) (False Identification) (Number of aggressive drivers who are incorrectly identified)
 
     if ((FP + TN) > 0) {
 
-        s_FPR[individual] <- FP / (FP + TN)
+        s_FPR[individual] <- FP / (FP + TN) # Speed False Positive Rate Value
 
     } else {
 
-        s_FPR[individual] <- NA_real_
+        # NA-real_ means not defined answer
+        s_FPR[individual] <- NA_real_ # Setting it to 0 wouldn't make sense since 0 can represent a value, so we set it to NA_real
 
     }
 
     if ((FN + TP) > 0) {
 
-        s_FNR[individual] <- FN / (FN + TP)
+        s_FNR[individual] <- FN / (FN + TP) # Speed Negative Positive Rate Value
 
     } else {
 
-        s_FNR[individual] <- NA_real_
+        # NA-real_ means not defined answer
+        s_FNR[individual] <- NA_real_ # Setting it to 0 wouldn't make sense since 0 can represent a value, so we set it to NA_real
 
     }
 
-    s_badness[individual] <- s_FPR[individual] + s_FNR[individual]
+    s_badness[individual] <- s_FPR[individual] + s_FNR[individual] # Speed Badness sum value of two error rates of a threshold
 
 }
 
-s_index <- which.min(s_badness)
-s_threshold_min <- s_threshold[s_index]
-s_flag_min <- s_flag[s_index]
-s_badness_min <- s_badness[s_index]
+s_index <- which.min(s_badness)             # Index of minimum badness for brightness
+s_threshold_min <- s_threshold[s_index]     # Best brightness threshold
+s_flag_min <- s_flag[s_index]               # Best brightness flag
+s_badness_min <- s_badness[s_index]         # Best brightness badness
 
 ##############################################################################
 # Attribute: LANE_CHANGES
+# Data Type: Whole Number
+# Doesn't need to be truncated since they are integers 
 ##############################################################################
-all_lane_change <- data_all$LANE_CHANGES
+ 
+all_lane_change <- data_all$LANE_CHANGES             # Lane change count
+lc_min_threshold <- min(all_lane_change)             # Lowest lane change count of all data
+lc_max_threshold <- max(all_lane_change)             # Highest lane change count of all data
+lc_threshold <- lc_min_threshold:lc_max_threshold    # Minimum to maximum lane change threshold
+lc_FPR <- numeric(length(lc_threshold))              # Lane Changes False Positive Rate
+lc_FNR <- numeric(length(lc_threshold))              # Lane Changes False Negative Rate
+lc_flag <- logical(length(lc_threshold))             # Lane Changes Flag
+lc_badness <- numeric(length(lc_threshold))          # Lane Changes Badness
 
-lc_min_threshold <- min(all_lane_change)
-lc_max_threshold <- max(all_lane_change)
-lc_threshold <- lc_min_threshold:lc_max_threshold
-
-lc_FPR <- numeric(length(lc_threshold))
-lc_FNR <- numeric(length(lc_threshold))
-lc_flag <- logical(length(lc_threshold))
-lc_badness <- numeric(length(lc_threshold))
-
+# Loop representing attribute LANE_CHANGES to collect all of speed FPR, FNR, flag, and badness values
+# Note: From reading the write up, it said "For each possible attribute", so my approach is set up
+# for loops for each individual attribute to get the data we need.
+# It could be complicated if we use one loop for all of the attributes.
 for (individual in seq_along(lc_threshold)) {
     
     ind_t <- lc_threshold[individual]
 
+    # Find majority class of data that is <= the threshold value
     left_group <- truth[all_lane_change <= ind_t]
 
+    # Mainly aggressive drivers are <= the threshold and aggresive means 1
     left_group_agg <- sum(left_group == 1L)
     
+    # Group of non-aggressive drivers with truth value of 0
     left_group_nagg <- sum(left_group == 0L)
 
-    if (left_group_agg > left_group_nagg) {
+    # Set flag if there are more aggresive drivers than non-aggresive drivers
+    if (left_group_agg > left_group_nagg) { 
 
-        lc_flag[individual] <- TRUE
+        lc_flag[individual] <- TRUE 
 
     } else {
 
@@ -135,74 +151,85 @@ for (individual in seq_along(lc_threshold)) {
 
     }
 
-    prediction <- if (lc_flag[individual]) {
+    if (lc_flag[individual]) { # If flagged, that means we pull left side of data
 
-        all_lane_change <= ind_t
+        prediction <- all_lane_change <= ind_t
 
     } else {
 
-        all_lane_change > ind_t
+        prediction <- all_lane_change > ind_t # If non-flagged, that means we pull right side of data
 
     }
 
-    TP <- sum(prediction & truth == 1L)
-    TN <- sum(!prediction & truth == 0L)
-    FP <- sum(prediction & truth == 0L)
-    FN <- sum(!prediction & truth == 1L)
+                                                        # Prediction , Truth
+    TP <- sum(prediction & truth == 1L) # True Positive (Aggressive, Aggressive)
+    TN <- sum(!prediction & truth == 0L) # True Negative (Not Aggresive, Not Aggresive)
+    FP <- sum(prediction & truth == 0L) # False Positive (Aggresive, Not Aggresive) (False Alarm) (Number of Non-aggressive drivers that are incorrectly identified)
+    FN <- sum(!prediction & truth == 1L) # False Negative (Not Aggresive, Aggresive) (False Identification) (Number of aggressive drivers who are incorrectly identified)
 
     if ((FP + TN) > 0) {
 
-        lc_FPR[individual] <- FP / (FP + TN)
+        lc_FPR[individual] <- FP / (FP + TN) # Lane Change FPR individual value
 
     } else {
 
-        lc_FPR[individual] <- NA_real_
+        lc_FPR[individual] <- NA_real_ # Setting it to 0 wouldn't make sense since 0 can represent a value, so we set it to NA_real
 
     }
 
     if ((FN + TP) > 0) {
 
-        lc_FNR[individual] <- FN / (FN + TP)
+        lc_FNR[individual] <- FN / (FN + TP) # Lane Change FNR individual value
 
     } else {
 
-        lc_FNR[individual] <- NA_real_
+        lc_FNR[individual] <- NA_real_ # Setting it to 0 wouldn't make sense since 0 can represent a value, so we set it to NA_real
 
     }
 
-    lc_badness[individual] <- lc_FPR[individual] + lc_FNR[individual]
+    lc_badness[individual] <- lc_FPR[individual] + lc_FNR[individual] # Lane Change Badness sum value of two error rates of a threshold
 
 }
 
-lc_index <- which.min(lc_badness)
-lc_threshold_min <- lc_threshold[lc_index]
-lc_flag_min <- lc_flag[lc_index]
-lc_badness_min <- lc_badness[lc_index]
+lc_index <- which.min(lc_badness)              # Index of minimum badness for lane changes
+lc_threshold_min <- lc_threshold[lc_index]     # Best lane change threshold
+lc_flag_min <- lc_flag[lc_index]               # Best lane change flag
+lc_badness_min <- lc_badness[lc_index]         # Best lane change badness
 
 ############################################################################## 
 # Attribute: BRIGHTNESS
+# Data Type: Whole Number
 ##############################################################################
 
-all_brightness <- data_all$BRIGHTNESS
-b_min_threshold <- min(all_brightness)
-b_max_threshold <- max(all_brightness)
-b_threshold <- b_min_threshold:b_max_threshold
+all_brightness <- data_all$BRIGHTNESS               # Brightness values
+b_min_threshold <- min(all_brightness)              # Lowest brightness in all data
+b_max_threshold <- max(all_brightness)              # Highest brightness in all data
+b_threshold <- b_min_threshold:b_max_threshold      # Minimum to maximum brightness threshold (integers)
 
-b_FPR <- numeric(length(b_threshold))
-b_FNR <- numeric(length(b_threshold))
-b_flag <- logical(length(b_threshold))
-b_badness <- numeric(length(b_threshold))
+b_FPR <- numeric(length(b_threshold))               # Brightness False Positive Rate
+b_FNR <- numeric(length(b_threshold))               # Brightness False Negative Rate
+b_flag <- logical(length(b_threshold))              # Brightness flag
+b_badness <- numeric(length(b_threshold))           # Brightness badness
 
+
+# Loop representing attribute BRIGHTNESS to collect all of speed FPR, FNR, flag, and badness values
+# Note: From reading the write up, it said "For each possible attribute", so my approach is set up
+# for loops for each individual attribute to get the data we need.
+# It could be complicated if we use one loop for all of the attributes.
 for (individual in seq_along(b_threshold)) {
 
     ind_t <- b_threshold[individual]
 
+    # Find majority class of data that is <= the threshold value
     left_group <- truth[all_brightness <= ind_t]
 
+    # Mainly aggressive drivers are <= the threshold and aggresive means 1
     left_group_agg <- sum(left_group == 1L)
     
+    # Group of non-aggressive drivers with truth value of 0
     left_group_nagg <- sum(left_group == 0L)
 
+    # Set flag if there are more aggresive drivers than non-aggresive drivers
     if (left_group_agg > left_group_nagg) {
 
         b_flag[individual] <- TRUE
@@ -213,20 +240,22 @@ for (individual in seq_along(b_threshold)) {
 
     }
 
-    prediction <- if (b_flag[individual]) {
+    if (b_flag[individual]) { # If flagged, that means we pull left side of data
 
-        all_brightness <= ind_t
+        prediction <- all_brightness <= ind_t
 
     } else {
 
-        all_brightness > ind_t
+        prediction <- all_brightness > ind_t # If non-flagged, that means we pull right side of data
 
     }
 
-    TP <- sum(prediction & truth == 1L)
-    TN <- sum(!prediction & truth == 0L)
-    FP <- sum(prediction & truth == 0L)
-    FN <- sum(!prediction & truth == 1L)
+                                                        # Prediction , Truth
+    TP <- sum(prediction & truth == 1L) # True Positive (Aggressive, Aggressive)
+    TN <- sum(!prediction & truth == 0L) # True Negative (Not Aggresive, Not Aggresive)
+    FP <- sum(prediction & truth == 0L) # False Positive (Aggresive, Not Aggresive) (False Alarm) (Number of Non-aggressive drivers that are incorrectly identified)
+    FN <- sum(!prediction & truth == 1L) # False Negative (Not Aggresive, Aggresive) (False Identification) (Number of aggressive drivers who are incorrectly identified)
+
 
     if ((FP + TN) > 0) {
 
@@ -234,7 +263,7 @@ for (individual in seq_along(b_threshold)) {
 
     } else {
 
-        b_FPR[individual] <- NA_real_
+        b_FPR[individual] <- NA_real_ # Setting it to 0 wouldn't make sense since 0 can represent a value, so we set it to NA_real
 
     }
 
@@ -243,61 +272,67 @@ for (individual in seq_along(b_threshold)) {
         b_FNR[individual] <- FN / (FN + TP)
 
     } else {
-
-        b_FNR[individual] <- NA_real_
+ 
+        b_FNR[individual] <- NA_real_# Setting it to 0 wouldn't make sense since 0 can represent a value, so we set it to NA_real
 
     }
 
-    b_badness[individual] <- b_FPR[individual] + b_FNR[individual]
+    b_badness[individual] <- b_FPR[individual] + b_FNR[individual] # Brightness Badness sum value of two error rates of a threshold
 
 }
 
-b_index <- which.min(b_badness)
-b_badness_threshold_min <- b_threshold[b_index]
-b_flag_min <- b_flag[b_index]
-b_badness_min <- b_badness[b_index]
+b_index <- which.min(b_badness)           # Index of minimum badness for brightness
+b_threshold_min <- b_threshold[b_index]   # Best brightness threshold
+b_flag_min <- b_flag[b_index]             # Best brightness flag
+b_badness_min <- b_badness[b_index]       # Best brightness badness
+
 
 ##############################################################################
 # Data Result Showcasing
+# Creates a new classifier script to test with Data_33.csv
 ##############################################################################
 
-cands_bad <- c(speed = s_badness_min,
-               lane_changes = lc_badness_min,
-               brightness   = b_badness_min)
+# Representation of all attributes minimum badness values
+attr_badness <- c(speed = s_badness_min, lane_changes = lc_badness_min, brightness = b_badness_min)
 
-best_attr <- names(which.min(cands_bad))
+best_attr <- names(which.min(attr_badness)) # Gets the best attribute option
 
 if (best_attr == "speed") {
 
     best_feature <- "SPEED"      
-    best_tau <- as.integer(s_threshold_min) 
+    best_threshold <- as.integer(s_threshold_min) 
     best_flag <- s_flag_min
 
 } else if (best_attr == "lane_changes") {
 
     best_feature <- "LANE_CHANGES"
-    best_tau <- as.integer(lc_threshold_min)
+    best_threshold <- as.integer(lc_threshold_min)
     best_flag <- lc_flag_min
 
 } else {
 
     best_feature <- "BRIGHTNESS"
-    best_tau <- as.integer(b_threshold_min)
+    best_threshold <- as.integer(b_threshold_min)
     best_flag <- b_flag_min
 
 }              
 
-classifier_path <- file.path(getwd(), "HW_03_Chang_Ethan_Classifier.r")
+classifier_path <- file.path(getwd(), "HW_03_Chang_Ethan_Classifier.r") # Creates new classifier file 
 
+# Write programmming script to the Classifier file
 cls <- c(
-  "# One-Rule Threshold Classifier (auto-generated)",
+  "# One-Rule Threshold Classifier",
+  "",
   sprintf('BEST_FEATURE <- "%s"', toupper(best_feature)),
-  sprintf("BEST_TAU <- %dL", as.integer(best_tau)),
+  sprintf("BEST_THRESHOLD <- %dL", as.integer(best_threshold)),
   sprintf("BEST_FLAG_LEFT <- %s", if (best_flag) "TRUE" else "FALSE"),
   "",
   "args <- commandArgs(trailingOnly = TRUE)",
+  "",
+  "# Makes sure program has 1 argument. ",
   'if (length(args) < 1) stop("Usage: Rscript HW_03_Chang_Ethan_Classifier.r <test_suite.csv>")',
   "",
+  "# args[1] = TEST_SUITE_33",
   "fname <- args[1]",
   'fname <- file.path("TEST_SUITE_33", fname)',
   "",
@@ -307,19 +342,26 @@ cls <- c(
   "all_lane_change <- df$LANE_CHANGES",
   "all_brightness <- df$BRIGHTNESS_TRUNC",
   "",
-  'x <- if (BEST_FEATURE == "SPEED") all_speeds else if (BEST_FEATURE == "LANE_CHANGES") all_lane_change else all_brightness',
+  'if (BEST_FEATURE == "SPEED") {
+    x <- all_speeds 
+   } else if (BEST_FEATURE == "LANE_CHANGES") {
+    x <- all_lane_change
+   } else {
+    x <- all_brightness
+   }',
   "",
   "if (BEST_FLAG_LEFT) {
-   pred_aggr <- (x <= BEST_TAU) 
+   pred_aggr <- (x <= BEST_THRESHOLD) 
   } else {
-   pred_aggr <- (x > BEST_TAU)
+   pred_aggr <- (x > BEST_THRESHOLD)
   }",
   "",
-  "cat(sum(pred_aggr), '\\n')",
-  "cat(sum(!pred_aggr), '\\n')"
+  "# Outputs the results ",
+  "cat('Aggresive: ', sum(pred_aggr), '\\n')",
+  "cat('Non-Aggresive: ', sum(!pred_aggr), '\\n')"
 )
 
-writeLines(cls, con = classifier_path)
+writeLines(cls, con = classifier_path) # Writes the following script into the classifier file
 
 
 
