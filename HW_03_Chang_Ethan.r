@@ -1,6 +1,7 @@
 # HW_03 One-Rule Threshold Classifier
 # Author: Ethan Chang
 # Course: CSCI 420
+# Compile: Rscript HW_03_Chang_Ethan.r
 
 main_folder <- "HW_03_Data" #Initial main folder containing subfolders with csv files
 
@@ -297,21 +298,21 @@ attr_badness <- c(speed = s_badness_min, lane_changes = lc_badness_min, brightne
 
 best_attr <- names(which.min(attr_badness)) # Gets the best attribute option
 
-if (best_attr == "speed") {
+if (best_attr == "speed") { # Gets minimum badness speed values
 
     best_feature <- "SPEED"      
     best_threshold <- as.integer(s_threshold_min) 
     best_flag <- s_flag_min
 
-} else if (best_attr == "lane_changes") {
+} else if (best_attr == "lane_changes") { # Gets minimum badness number of lane change values
 
     best_feature <- "LANE_CHANGES"
     best_threshold <- as.integer(lc_threshold_min)
     best_flag <- lc_flag_min
 
 } else {
-
-    best_feature <- "BRIGHTNESS"
+ 
+    best_feature <- "BRIGHTNESS" # Gets minimum badness brightness values
     best_threshold <- as.integer(b_threshold_min)
     best_flag <- b_flag_min
 
@@ -322,6 +323,9 @@ classifier_path <- file.path(getwd(), "HW_03_Chang_Ethan_Classifier.r") # Create
 # Write programmming script to the Classifier file
 cls <- c(
   "# One-Rule Threshold Classifier",
+  "# Ethan Chang",
+  "# CSCI 420",
+  "# Compile: Rscript HW_03_Chang_Ethan_Classifier.r Data_33.csv",
   "",
   sprintf('BEST_FEATURE <- "%s"', toupper(best_feature)),
   sprintf("BEST_THRESHOLD <- %dL", as.integer(best_threshold)),
@@ -340,7 +344,7 @@ cls <- c(
   "",
   "all_speeds <- trunc(df$SPEED)",
   "all_lane_change <- df$LANE_CHANGES",
-  "all_brightness <- df$BRIGHTNESS_TRUNC",
+  "all_brightness <- df$BRIGHTNESS",
   "",
   'if (BEST_FEATURE == "SPEED") {
     x <- all_speeds 

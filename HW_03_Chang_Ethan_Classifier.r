@@ -1,4 +1,7 @@
 # One-Rule Threshold Classifier
+# Ethan Chang
+# CSCI 420
+# Compile: Rscript HW_03_Chang_Ethan_Classifier.r Data_33.csv
 
 BEST_FEATURE <- "LANE_CHANGES"
 BEST_THRESHOLD <- 2L
@@ -17,7 +20,7 @@ df <- read.csv(fname, stringsAsFactors = FALSE)
 
 all_speeds <- trunc(df$SPEED)
 all_lane_change <- df$LANE_CHANGES
-all_brightness <- df$BRIGHTNESS_TRUNC
+all_brightness <- df$BRIGHTNESS
 
 if (BEST_FEATURE == "SPEED") {
     x <- all_speeds 
